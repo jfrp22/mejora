@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tracker GPS en Tiempo Real</title>
+  <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 400px; margin-top: 20px; border-radius: 8px; }
+    .data-card { 
+      background: white; padding: 15px; margin: 10px 0; 
+      border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>Tracker GPS en Tiempo Real</h1>
+  
+  <div class="data-card">
+    <div>Latitud: <span id="lat">0</span></div>
+    <div>Longitud: <span id="lng">0</span></div>
+    <div>Altitud: <span id="alt">0 m</span></div>
+    <div>Satélites: <span id="sats">0</span></div>
+  </div>
+  
+  <div id="map"></div>
+
+  <script>
+    // Configuración MQTT
+    const client = mqtt.connect("wss://test.mosquitto.org:8081/mqtt");
+    const topic = "gps/tracker";
+
+    // Configuración del mapa (Leaflet)
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let marker = L.marker([0, 0]).addTo(map);
+
+    // Manejar mensajes MQTT
+    client.on('connect', () => {
+      client.subscribe(topic);
+    });
+
+    client.on('message', (topic, message) => {
+      const data = JSON.parse(message.toString());
+      
+      // Actualizar UI
+      document.getElementById('lat').textContent = data.lat.toFixed(6);
+      document.getElementById('lng').textContent = data.lng.toFixed(6);
+      document.getElementById('alt').textContent = data.alt.toFixed(2) + " m";
+      document.getElementById('sats').textContent = data.sats;
+      
+      // Mover marcador y enfocar mapa
+      const newPos = [data.lat, data.lng];
+      marker.setLatLng(newPos);
+      map.setView(newPos, 15);
+      
+      // Popup informativo
+      marker.bindPopup(`
+        <b>Posición actual</b><br>
+        Lat: ${data.lat.toFixed(6)}<br>
+        Lng: ${data.lng.toFixed(6)}<br>
+        Alt: ${data.alt.toFixed(2)} m
+      `).openPopup();
+    });
+  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
